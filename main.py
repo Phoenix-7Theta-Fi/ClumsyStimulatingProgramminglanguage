@@ -1,10 +1,10 @@
 import streamlit as st
 import os
-from langchain.graphs.neo4j_graph import Neo4jGraph  # Modified import statement
+from langchain.graphs.neo4j_graph import Neo4jGraph
 from langchain.chains import GraphCypherQAChain
 from langchain.memory import ConversationBufferMemory
 from langchain.prompts import PromptTemplate
-from langchain_google_genai import GoogleGenerativeAI
+from langchain_google_genai import GoogleGenerativeAI  # Ensure this package is installed
 
 # Set page config
 st.set_page_config(page_title="Ayurvedic Assistant", page_icon="🌿", layout="wide")
