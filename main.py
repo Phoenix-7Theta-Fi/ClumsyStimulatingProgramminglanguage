@@ -1,5 +1,4 @@
 import streamlit as st
-import os
 from langchain_community.graphs import Neo4jGraph
 from langchain.chains import GraphCypherQAChain
 from langchain_google_genai import GoogleGenerativeAI
@@ -10,11 +9,11 @@ from langchain.memory import ConversationBufferMemory
 st.set_page_config(page_title="Ayurfix - Ayurvedic Consultation App")
 st.title("Ayurfix - Your AI Ayurvedic Consultant")
 
-# Load environment variables
-NEO4J_URI = os.getenv("NEO4J_URI")
-NEO4J_USERNAME = os.getenv("NEO4J_USERNAME")
-NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD")
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+# Load secrets
+NEO4J_URI = st.secrets["neo4j"]["uri"]
+NEO4J_USERNAME = st.secrets["neo4j"]["username"]
+NEO4J_PASSWORD = st.secrets["neo4j"]["password"]
+GOOGLE_API_KEY = st.secrets["google"]["api_key"]
 
 # Connect to Neo4j
 graph = Neo4jGraph(
@@ -63,15 +62,6 @@ prompt = PromptTemplate(
     template=ayurvedic_template
 )
 
-# Create the conversation chain
-conversation_chain = GraphCypherQAChain(
-    graph=graph,
-    llm=llm,
-    memory=conversation_memory,
-    prompt=prompt,
-    verbose=True
-)
-
 # Streamlit app layout
 st.write("Welcome to Ayurfix! I'm your AI Ayurvedic consultant. Please describe your symptoms, concerns, or ask any questions about Ayurveda.")
 
@@ -85,19 +75,28 @@ for message in st.session_state.messages:
         st.markdown(message["content"])
 
 # User input
-if prompt := st.chat_input("What would you like to know about Ayurveda?"):
-    st.session_state.messages.append({"role": "user", "content": prompt})
+if user_input := st.chat_input("What would you like to know about Ayurveda?"):
+    st.session_state.messages.append({"role": "user", "content": user_input})
     with st.chat_message("user"):
-        st.markdown(prompt)
+        st.markdown(user_input)
 
-    # Generate response using the conversation chain
+    # Generate response using the graph QA chain
     with st.spinner("Thinking..."):
-        response = conversation_chain.run(human_input=prompt)
+        graph_response = graph_qa_chain.run(user_input)
+
+        # Use the LLM to generate a more comprehensive response
+        llm_response = llm.generate_content(
+            prompt.format(
+                human_input=user_input,
+                graph_info=graph_response,
+                chat_history="\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages])
+            )
+        )
 
     # Display AI's response
     with st.chat_message("assistant"):
-        st.markdown(response)
-    st.session_state.messages.append({"role": "assistant", "content": response})
+        st.markdown(llm_response.text)
+    st.session_state.messages.append({"role": "assistant", "content": llm_response.text})
 
 # Disclaimer
 st.markdown("---")
