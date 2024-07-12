@@ -10,30 +10,47 @@ st.set_page_config(page_title="Ayurfix - Ayurvedic Consultation App")
 st.title("Ayurfix - Your AI Ayurvedic Consultant")
 
 # Load secrets
-NEO4J_URI = st.secrets["neo4j"]["uri"]
-NEO4J_USERNAME = st.secrets["neo4j"]["username"]
-NEO4J_PASSWORD = st.secrets["neo4j"]["password"]
-GOOGLE_API_KEY = st.secrets["google"]["api_key"]
+GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
+NEO4J_URI = st.secrets["NEO4J_URI"]
+NEO4J_USERNAME = st.secrets["NEO4J_USERNAME"]
+NEO4J_PASSWORD = st.secrets["NEO4J_PASSWORD"]
+
+# Check if all required credentials are available
+if not all([GOOGLE_API_KEY, NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD]):
+    st.error("Missing required credentials. Please check your secrets.toml file.")
+    st.stop()
 
 # Connect to Neo4j
-graph = Neo4jGraph(
-    url=NEO4J_URI,
-    username=NEO4J_USERNAME,
-    password=NEO4J_PASSWORD
-)
+try:
+    graph = Neo4jGraph(
+        url=NEO4J_URI,
+        username=NEO4J_USERNAME,
+        password=NEO4J_PASSWORD
+    )
+except Exception as e:
+    st.error(f"Failed to connect to Neo4j: {str(e)}")
+    st.stop()
 
 # Initialize Google Gemini Pro model
-llm = GoogleGenerativeAI(model="gemini-pro", google_api_key=GOOGLE_API_KEY)
+try:
+    llm = GoogleGenerativeAI(model="gemini-pro", google_api_key=GOOGLE_API_KEY)
+except Exception as e:
+    st.error(f"Failed to initialize Google Gemini Pro model: {str(e)}")
+    st.stop()
 
 # Set up conversation memory
 conversation_memory = ConversationBufferMemory(input_key='human_input', memory_key='chat_history')
 
 # Create GraphCypherQAChain
-graph_qa_chain = GraphCypherQAChain.from_llm(
-    llm=llm,
-    graph=graph,
-    verbose=True
-)
+try:
+    graph_qa_chain = GraphCypherQAChain.from_llm(
+        llm=llm,
+        graph=graph,
+        verbose=True
+    )
+except Exception as e:
+    st.error(f"Failed to create GraphCypherQAChain: {str(e)}")
+    st.stop()
 
 # Ayurvedic consultation prompt template
 ayurvedic_template = """
@@ -82,21 +99,24 @@ if user_input := st.chat_input("What would you like to know about Ayurveda?"):
 
     # Generate response using the graph QA chain
     with st.spinner("Thinking..."):
-        graph_response = graph_qa_chain.run(user_input)
+        try:
+            graph_response = graph_qa_chain.run(user_input)
 
-        # Use the LLM to generate a more comprehensive response
-        llm_response = llm.generate_content(
-            prompt.format(
-                human_input=user_input,
-                graph_info=graph_response,
-                chat_history="\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages])
+            # Use the LLM to generate a more comprehensive response
+            llm_response = llm.generate_content(
+                prompt.format(
+                    human_input=user_input,
+                    graph_info=graph_response,
+                    chat_history="\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages])
+                )
             )
-        )
 
-    # Display AI's response
-    with st.chat_message("assistant"):
-        st.markdown(llm_response.text)
-    st.session_state.messages.append({"role": "assistant", "content": llm_response.text})
+            # Display AI's response
+            with st.chat_message("assistant"):
+                st.markdown(llm_response.text)
+            st.session_state.messages.append({"role": "assistant", "content": llm_response.text})
+        except Exception as e:
+            st.error(f"An error occurred while generating the response: {str(e)}")
 
 # Disclaimer
 st.markdown("---")
