@@ -1,6 +1,6 @@
 import streamlit as st
 import os
-from langchain.graphs import Neo4jGraph
+from langchain.graphs.neo4j_graph import Neo4jGraph  # Modified import statement
 from langchain.chains import GraphCypherQAChain
 from langchain.memory import ConversationBufferMemory
 from langchain.prompts import PromptTemplate
