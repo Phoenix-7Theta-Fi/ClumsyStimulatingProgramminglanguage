@@ -4,7 +4,7 @@ from langchain.graphs.neo4j_graph import Neo4jGraph
 from langchain.chains import GraphCypherQAChain
 from langchain.memory import ConversationBufferMemory
 from langchain.prompts import PromptTemplate
-from langchain_google_genai import GoogleGenerativeAI  # Ensure this package is installed
+from google.generativeai import generativeai  # Corrected import statement
 
 # Set page config
 st.set_page_config(page_title="Ayurvedic Assistant", page_icon="🌿", layout="wide")
@@ -26,7 +26,7 @@ graph = init_graph()
 # Initialize Google Gemini Pro
 @st.cache_resource
 def init_llm():
-    return GoogleGenerativeAI(model="gemini-pro", temperature=0.1)
+    return generativeai.GenerativeAI(model="gemini-pro", temperature=0.1)  # Updated to match correct class name
 
 llm = init_llm()
 
