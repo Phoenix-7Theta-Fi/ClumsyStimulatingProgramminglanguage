@@ -1,9 +1,10 @@
 import streamlit as st
 from langchain_community.graphs import Neo4jGraph
 from langchain.chains import GraphCypherQAChain
-from langchain_google_genai import GoogleGenerativeAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.prompts import PromptTemplate
 from langchain.memory import ConversationBufferMemory
+from langchain.schema import HumanMessage
 
 # Streamlit app setup
 st.set_page_config(page_title="Ayurfix - Ayurvedic Consultation App")
@@ -33,7 +34,7 @@ except Exception as e:
 
 # Initialize Google Gemini Pro model
 try:
-    llm = GoogleGenerativeAI(model="gemini-pro", google_api_key=GOOGLE_API_KEY)
+    llm = ChatGoogleGenerativeAI(model="gemini-pro", google_api_key=GOOGLE_API_KEY)
 except Exception as e:
     st.error(f"Failed to initialize Google Gemini Pro model: {str(e)}")
     st.stop()
@@ -103,20 +104,23 @@ if user_input := st.chat_input("What would you like to know about Ayurveda?"):
             graph_response = graph_qa_chain.run(user_input)
 
             # Use the LLM to generate a more comprehensive response
-            llm_response = llm.generate_content(
-                prompt.format(
-                    human_input=user_input,
-                    graph_info=graph_response,
-                    chat_history="\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages])
-                )
+            llm_prompt = prompt.format(
+                human_input=user_input,
+                graph_info=graph_response,
+                chat_history="\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages])
             )
+            llm_response = llm([HumanMessage(content=llm_prompt)])
 
             # Display AI's response
             with st.chat_message("assistant"):
-                st.markdown(llm_response.text)
-            st.session_state.messages.append({"role": "assistant", "content": llm_response.text})
+                st.markdown(llm_response.content)
+            st.session_state.messages.append({"role": "assistant", "content": llm_response.content})
         except Exception as e:
-            st.error(f"An error occurred while generating the response: {str(e)}")
+            error_message = str(e)
+            if "API_KEY_INVALID" in error_message:
+                st.error("The Google API key is invalid or has expired. Please contact the administrator to update the API key.")
+            else:
+                st.error(f"An error occurred while generating the response: {error_message}")
 
 # Disclaimer
 st.markdown("---")
